@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.AI;
+using static UnityEngine.GraphicsBuffer;
 
 public class AI : MonoBehaviour
 {
@@ -16,13 +18,29 @@ public class AI : MonoBehaviour
     public HingeJoint Harvester;
     public float SpeedAgent;
     public float MaxDistanceAgent;
-    
+    public float BuildByY = 0;
+    public float BuildByZ = 0;
+    public float BuildByX = 0;
+
     private int CurrentWP;
     private Transform Agent;
+    private GameObject lineActivate;
+    private GameObject lineRenderer;
+    private bool Build;
     private bool initialized;
 
     void Start()
     {
+        
+        GameObject lineActivate = new GameObject();
+        lineActivate.name = "lineActivate";
+        lineActivate.tag = "lineActivate";
+        lineActivate.AddComponent<LineRenderer>();
+        GameObject lineRenderer = new GameObject();
+        lineRenderer.name = "lineRenderer";
+        lineRenderer.tag = "lineRenderer";
+        lineRenderer.AddComponent<LineRenderer>();
+
         GetComponent<Rigidbody>().centerOfMass = COM.localPosition;
         GameObject agent = new GameObject();
         agent.name = "NavMeshAgent";
@@ -34,20 +52,42 @@ public class AI : MonoBehaviour
 
     void OnDrawGizmos()
     {
-        Gizmos.color = Color.green;
-
-        Waypoints = new List<GameObject>(GameObject.FindGameObjectsWithTag("Waypoint"));
-        for (int i = 0; i < Waypoints.Count - 1; i++)
-        {
-            Gizmos.DrawLine(Waypoints[i].transform.position, Waypoints[i + 1].transform.position);
-            Gizmos.DrawSphere(Waypoints[i].transform.position, 0.5f);
-            Gizmos.DrawSphere(Waypoints[i + 1].transform.position, 0.5f);
-        }
+        var activate = Color.green;
+        Gizmos.color = activate;
         if (initialized == true)
         {
             Agent = GameObject.FindGameObjectWithTag("Target").transform;
             Gizmos.color = Color.red;
             Gizmos.DrawSphere(Agent.position, 1);
+        }
+    }
+
+    void VisualizationOfPath(List<GameObject> Waypoints, GameObject Agent)
+    {
+        LineRenderer lineActivate = GameObject.FindGameObjectWithTag("lineActivate").GetComponent<LineRenderer>();
+        lineActivate.material = new Material(Shader.Find("Sprites/Default"));
+        lineActivate.widthMultiplier = 0.2f;
+        lineActivate.positionCount = 2;
+        for (int i = 0; i < Waypoints.Count; i++)
+        {
+            if (Waypoints[i].transform.position == Agent.transform.position)
+            {
+                lineActivate.SetPosition(0, Waypoints[i].transform.position);
+                if (i != 0) lineActivate.SetPosition(1, Waypoints[i - 1].transform.position);
+                lineActivate.startColor = Color.blue;
+                lineActivate.endColor = Color.blue;
+            }
+        }
+
+        LineRenderer lineRenderer = GameObject.FindGameObjectWithTag("lineRenderer").GetComponent<LineRenderer>();
+        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+        lineRenderer.widthMultiplier = 0.1f;
+        lineRenderer.positionCount = Waypoints.Count;
+        for (int f = 0; f < Waypoints.Count; f++)
+        {
+            lineRenderer.SetPosition(f, Waypoints[f].transform.position);
+            lineRenderer.startColor = Color.green;
+            lineRenderer.endColor = Color.green;
         }
     }
 
@@ -60,6 +100,24 @@ public class AI : MonoBehaviour
 
         Agent = GameObject.FindGameObjectWithTag("Target").transform;
         Waypoints = new List<GameObject>(GameObject.FindGameObjectsWithTag("Waypoint"));
+        if (Build)
+        {
+            for (int i = 1; i <= 5; i++)
+            {
+                if (i % 2 != 0)
+                {
+                    Instantiate(Waypoints[1], new Vector3(Waypoints[1].transform.position.x + BuildByX * i, Waypoints[1].transform.position.y + BuildByY * i, Waypoints[1].transform.position.z + BuildByZ * i), Quaternion.identity);
+                    Instantiate(Waypoints[0], new Vector3(Waypoints[0].transform.position.x + BuildByX * i, Waypoints[0].transform.position.y + BuildByY * i, Waypoints[0].transform.position.z + BuildByZ * i), Quaternion.identity);
+                } else
+                {
+                    Instantiate(Waypoints[0], new Vector3(Waypoints[0].transform.position.x + BuildByX * i, Waypoints[0].transform.position.y + BuildByY * i, Waypoints[0].transform.position.z + BuildByZ * i), Quaternion.identity);
+                    Instantiate(Waypoints[1], new Vector3(Waypoints[1].transform.position.x + BuildByX * i, Waypoints[1].transform.position.y + BuildByY * i, Waypoints[1].transform.position.z + BuildByZ * i), Quaternion.identity);
+                } 
+                
+            }
+            Build = false;
+        }
+
         if (1.0f > Vector3.Distance(Agent.position, Waypoints[CurrentWP].transform.position))
         {
             CurrentWP++;
@@ -68,6 +126,7 @@ public class AI : MonoBehaviour
                 CurrentWP = 0;
             }
         }
+        VisualizationOfPath(Waypoints, Waypoints[CurrentWP]);
         Agent.GetComponent<NavMeshAgent>().SetDestination(Waypoints[CurrentWP].transform.position);
 
         if (Agent != null)
@@ -164,6 +223,7 @@ public class AI : MonoBehaviour
         {
             axleInfo.leftWheelGrahic.transform.Rotate(Mathf.Repeat(Time.fixedDeltaTime * -axleInfo.leftWheel.rpm * 360.0f / 60.0f, 360.0f), 0, 0);
             axleInfo.rightWheelGraphic.transform.Rotate(Mathf.Repeat(Time.fixedDeltaTime * -axleInfo.rightWheel.rpm * 360.0f / 60.0f, 360.0f), 0, 0);
+
         }
     }
 
